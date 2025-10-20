@@ -57,6 +57,54 @@ install_nvm_and_node() {
     echo -e "${GREEN}================== NodeJS dan NVM berhasil diinstal ==================${NC}"
 }
 
+# Fungsi untuk menginstal MongoDB
+install_mongodb() {
+    echo -e "${GREEN}================== Menginstal MongoDB ==================${NC}"
+
+    if systemctl is-active --quiet mongod; then
+        echo -e "${GREEN}MongoDB sudah terinstal dan berjalan.${NC}"
+        return 0
+    fi
+
+    if [ "$arch" == "aarch64" ]; then
+        echo "Mendeteksi arsitektur ARM64."
+        repo_arch="arm64"
+    else
+        echo "Mendeteksi arsitektur x86_64."
+        repo_arch="amd64"
+    fi
+
+    # Menginstal prasyarat
+    sudo apt update
+    sudo apt install -y gnupg curl
+
+    # Menambahkan kunci GPG MongoDB
+    curl -fsSL https://www.mongodb.org/static/pgp/server-6.0.asc | sudo gpg --dearmor -o /usr/share/keyrings/mongodb-archive-keyring.gpg
+
+    # Menambahkan sumber repositori MongoDB untuk Ubuntu 22.04
+    ubuntu_version=$(lsb_release -rs)
+    if [ "$ubuntu_version" == "22.04" ]; then
+        echo "deb [ arch=$repo_arch signed-by=/usr/share/keyrings/mongodb-archive-keyring.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+    else
+        echo "deb [ arch=$repo_arch signed-by=/usr/share/keyrings/mongodb-archive-keyring.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+    fi
+
+    # Memperbarui apt cache dan menginstal MongoDB
+    sudo apt update
+    sudo apt install -y mongodb-org
+
+    # Memulai dan mengaktifkan MongoDB
+    sudo systemctl start mongod
+    sudo systemctl enable mongod
+
+    if systemctl is-active --quiet mongod; then
+        echo -e "${GREEN}================== Sukses MongoDB ==================${NC}"
+    else
+        echo -e "${RED}Gagal menginstal atau memulai MongoDB. Silakan periksa log.${NC}"
+        exit 1
+    fi
+}
+
 # Memeriksa dan menginstal GenieACS
 install_genieacs() {
     if ! systemctl is-active --quiet genieacs-{cwmp,fs,ui,nbi}; then
